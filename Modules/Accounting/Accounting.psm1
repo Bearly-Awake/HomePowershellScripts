@@ -10,11 +10,16 @@ function Add-Cost {
     if ($reset -or !$Global:CostSheet) {
         $Global:CostSheet = @()
     }
-    $CostItem = [CostItem]::new()
-    $CostItem.ownerName = $ownerName
-    $CostItem.item = $item
-    $CostItem.cost = $cost
-    $Global:CostSheet += $CostItem
+    If ($ownerName -and $item -and $cost) {
+        $CostItem = [CostItem]::new()
+        $CostItem.ownerName = $ownerName
+        $CostItem.item = $item
+        $CostItem.cost = $cost
+        $Global:CostSheet += $CostItem
+    }
+    else {
+        Write-Host "one of the args is empty. This scripts requres"
+    }
     #$Global:CostSheet
 }
 
@@ -31,10 +36,9 @@ function Get-Accouting {
         HalfOfSum = (($Global:CostSheet | Measure-Object -Property cost -Sum).sum / $names.Count )
     }
     # Sum up for individuals
-    Foreach ($name in $names) {
+    [array]$sums = Foreach ($name in $names) {
         $NameSum = ($Global:CostSheet | Where-Object ownerName -eq $name | Measure-Object -Property cost -Sum).sum
-        If (!$sums) { $sums = @() }
-        $sums += [PSCustomObject]@{
+        [PSCustomObject]@{
             name                 = $name
             Spendt               = $NameSum
             "HalfOfTotal-Spendt" = $($NameSum - $HighLevel.HalfOfSum)
@@ -45,7 +49,7 @@ function Get-Accouting {
     $dedters = ($sums | Where-Object { $_."HalfOfTotal-Spendt" -LT 0 }).name
     $loaners = ($sums | Where-Object { $_."HalfOfTotal-Spendt" -gt 0 }).name
     IF ($dedters) {
-        WRITE-HOST "THE FOLLOWING DEDTHERS: $($dedters -join ", ")" -ForegroundColor Red -BackgroundColor Black
+        WRITE-HOST "THE FOLLOWING DEBTERS: $($dedters -join ", ")" -ForegroundColor Red -BackgroundColor Black
         WRITE-HOST "Owe money to the folowing lonaers: $($loaners -join ", ")"-ForegroundColor Green -BackgroundColor Black
     }
     else {
