@@ -1,9 +1,29 @@
 # -- SETUP --
-$clientId = '2185dec4f01740ac99979819216d59ed'
-$secret = 'mF4dU+MnjcxOEB7jSgzNgtCWAPRNjko5FeVtWWORM5Qc3Ll=8INmpiXayAAzS56b'
+$clientId = get-Secret -Name "Sbanken:clientid" -Vault credMan -AsPlainText
+$secret = get-Secret -Name "Sbanken:secret" -Vault credMan -AsPlainText
+
+If(!$clientId ){
+    Write-Error "clientId is missing" 
+    exit 1
+}
+If(!$secret ){
+    Write-Error "secret is missing" 
+    exit 1
+}
+
+
+
 # -- END SETUP --
+$csvPath = "$home\downloads\"
+
+# -- Config --
+
+#Number of months, from now, negative number
+$monthsHistory = -10..1
+$dateformat = "yyyy-MM-dd"
 
 $accountsToImport = @(
+    # @blocksort acs
     "Brukskonto",
     "Mat og morro"
 )
@@ -15,24 +35,35 @@ Add-Type -AssemblyName System.Web
 $authHeaders = Get-SbankenAuthHeader -clientId $clientId -clientSecret $secret
 $accounts = (get-SbankenAccounts -authHeaders $authHeaders).items | where { $_.name -in $accountsToImport } | select *
 
-$accounts[0]
+
+foreach ($account in $accounts){
+    Foreach ($month in $monthsHistory) {
+        # Calculate dates
+        $date = (Get-Date).AddMonths($month)
+        $dates = @{
+            startDate = $date.AddMonths(-1)
+            endDate   = $date
+        }
+        $Transactions = Get-SbankenTransactions $account.accountId -authHeaders $authHeaders @dates
+        $Transactions.items | Select-Object @(
+            @{
+                name       = "accountingDate"
+                expression = { get-date $_.accountingDate -Format $dateformat }
+            },
+            @{
+                name       = "amount"
+                expression = { $_.amount }
+            },
+            @{
+                name       = "transactionType"
+                expression = { $_.transactionType }
+            },
+            @{
+                name       = "text"
+                expression = { $_.text }
+            }
+        ) | Export-Csv -path $(join-path $csvPath "$($account.name).csv") -Append  -NoTypeInformation
+    }
+}
 
 
-<#
-$AllAccountsbalance = foreach ($item in $response.items) {
-    $accountUri = "https://publicapi.sbanken.no/apibeta/api/v1/Accounts/" + $item.accountId
-    $Balance = Invoke-RestMethod -Uri $accountUri -Method GET -Headers $authHeaders
-    $balance
-}   
-
-
-
-echo "Get spesific account based on AccountId"
-$authHeaders = @{}
-$authHeaders.Add("Accept", "application/json")
-$authHeaders.Add("Authorization", "Bearer " + $authResponse.access_token)
-$accountUri = "https://publicapi.sbanken.no/apibeta/api/v1/Accounts/" + $response.items[0].accountId
-$response = Invoke-RestMethod -Uri $accountUri -Method GET -Headers $authHeaders
-$response
-
-#>

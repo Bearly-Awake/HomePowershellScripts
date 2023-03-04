@@ -37,18 +37,46 @@ function Get-SbankenAccounts {
 
 function Get-SbankenTransactions {
     param(
+        [Parameter(
+            Position = 0,    
+            Mandatory = $true
+        )]
         [string]$accountID,
+        [Parameter(
+            Position = 1,    
+            Mandatory = $true
+        )]
         [hashtable]$authHeaders,
         [datetime]$startDate,
         [datetime]$endDate,
         [int]$index,
+        [ValidateRange(0, 1000)]
         [int]$length
     )
-    $filter = @()
-    
-
-    $accountUri = "https://publicapi.sbanken.no/apibeta//api/v2/Transactions/"+ $accountID + "?" ($filter -join "&")
+    #add relevnat filters
+    $dateformat = "yyyy-MM-dd"
+    $filters = @()
+    if ($startdate) {
+        $filters += "startDate=$(get-date $startDate -Format $dateformat)"
+    }
+    if ($endDate) {
+        $filters += "endDate=$(get-date $startDate -Format $endDate)"
+    }
+    if ($index) {
+        $filters += "index=$($index)"
+    }    
+    if ($length) {
+        $filters += "length=$($length)"
+    }
+    #Put together URL
+    if ($filters) {
+        $accountUri = "https://publicapi.sbanken.no/apibeta/api/v2/Transactions/" + $accountID + "?" + ($filters -join "&")
+    }
+    else {
+        $accountUri = "https://publicapi.sbanken.no/apibeta/api/v2/Transactions/" + $accountID
+    }
     $response = Invoke-RestMethod -Uri $accountUri -Method GET -Headers $authHeaders
+    $response
 }
 
 Export-ModuleMember -Function *
