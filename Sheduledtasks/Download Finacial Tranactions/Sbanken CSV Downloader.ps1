@@ -2,15 +2,10 @@
 $clientId = get-Secret -Name "Sbanken:clientid" -Vault credMan -AsPlainText
 $secret = get-Secret -Name "Sbanken:secret" -Vault credMan -AsPlainText
 
-If(!$clientId ){
-    Write-Error "clientId is missing" 
+If(!$clientId -or !$secret ){
+    Write-Error "clientId or is missing" 
     exit 1
 }
-If(!$secret ){
-    Write-Error "secret is missing" 
-    exit 1
-}
-
 
 
 # -- END SETUP --
@@ -62,7 +57,7 @@ foreach ($account in $accounts){
                 name       = "text"
                 expression = { $_.text }
             }
-        ) | Export-Csv -path $(join-path $csvPath "$($account.name).csv") -Append  -NoTypeInformation
+        ) | Export-Csv -path $(join-path $csvPath "$($account.name)_$(get-date -Format $($dateformat+"_HH-mm" )).csv") -Append  -NoTypeInformation
     }
 }
 
